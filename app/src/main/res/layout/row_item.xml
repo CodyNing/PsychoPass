@@ -65,7 +65,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginRight="20dp"
-            android:textSize="100px"
+            android:textSize="80px"
             android:text="@string/app_name"
             android:textColor="@android:color/holo_red_dark"
             android:textStyle="bold" />
@@ -75,7 +75,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginLeft="10dp"
-            android:textSize="50px"
+            android:textSize="40px"
             android:text="@string/app_name"
             android:textColor="@android:color/black"
             android:textStyle="bold" />
