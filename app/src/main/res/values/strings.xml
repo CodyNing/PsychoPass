@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">PsychoPass</string>
     <string name="Setting">Settings</string>
+    <string name="Search">Search</string>
     <string name="Location">Target current location</string>
     <string name="CrimeList">Crime List</string>
     <string name="notificationLabel">Push Notification</string>
@@ -22,6 +23,6 @@
     <string name="notification_vibrate_desc">Notify using vibration</string>
     <string name="warning">Warning!</string>
     <string name="warning_content">You have entered a dangrous zone. Be careful!</string>
-
+    <string name="nomarker">No marker on map</string>
 
 </resources>

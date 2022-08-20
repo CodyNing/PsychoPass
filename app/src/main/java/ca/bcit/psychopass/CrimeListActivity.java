@@ -10,6 +10,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ListView;
 
+import com.google.android.gms.maps.model.LatLng;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -36,9 +38,10 @@ public class CrimeListActivity extends AppCompatActivity {
         //get location coordinates
         Double Longitude = (Double)getIntent().getExtras().get("Longitude");
         Double Latitude = (Double)getIntent().getExtras().get("Latitude");
+        LatLng location = new LatLng(Latitude, Longitude);
 
         //filter crime data near this location
-        DataAnalysis d = new DataAnalysis(Longitude,Latitude, MyJsonUtil.crimeList);
+        DataAnalysis d = new DataAnalysis(location, MyJsonUtil.crimeList);
         crimeModels = d.getNearbyCrime();
 
         //convert coordinates to location - used for adaptor

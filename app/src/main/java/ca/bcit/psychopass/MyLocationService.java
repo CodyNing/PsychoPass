@@ -22,6 +22,9 @@ import android.telephony.SmsManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import com.google.android.gms.maps.model.LatLng;
+
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -67,7 +70,12 @@ public class MyLocationService extends Service {
                 entry.getValue().onCallback(location);
             }
 
-            DataAnalysis da = new DataAnalysis(location.getLongitude(),location.getLatitude(),MyJsonUtil.crimeList);
+            DecimalFormat df = new DecimalFormat("#.#######");
+            double Lat = Double.valueOf(df.format(location.getLatitude()));
+            double Long = Double.valueOf(df.format(location.getLongitude()));
+            LatLng loc = new LatLng(Lat, Long);
+
+            DataAnalysis da = new DataAnalysis(loc,MyJsonUtil.crimeList);
             if(da.isDangerZone()){
                 sendWarningByUserPreference();
         }

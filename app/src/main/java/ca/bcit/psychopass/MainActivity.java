@@ -1,143 +1,159 @@
 package ca.bcit.psychopass;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
-import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.annotation.DrawableRes;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.res.ResourcesCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.webkit.WebChromeClient;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.TextView;
+import android.widget.EditText;
 import android.widget.Toast;
 
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener {
 
-    private WebView webView;
-    private ProgressDialog pDialog;
-    private String TAG = MainActivity.class.getSimpleName();
+    private static final String TAG = "MainActivity";
+    private static final String MARKER_TAG_ENABLED = "MTE";
+    private static final String MARKER_TAG_DISABLED = "MTD";
+    private static final double CIRCLE_RADIUS = 200;
+
+    public boolean permissionRequested = false;
+
     private MyLocationService locationService;
     private boolean isBoundLocation = false;
     private Timer timer = new Timer();
     private Location curLocation;
+    private GoogleMap mMap;
+    private Marker locationMarker;
+    private Circle locationCircle;
 
-    public static final String GOOGLE_MAP_URL = "https://www.google.com/maps/@";
-    public static final String SERVICE_URL = "https://opendata.arcgis.com/datasets/28c37c4693fc4db68665025c2874e76b_7.geojson";
-    public static final String INITIAL_LOCATION =
-        "https://www.google.com/maps/place/Maple+Ridge,+BC/@49.2599033,-122.6800957,11z/data=!3m1!4b1!4m5!3m4!1s0x5485d3614f013ecb:0x47a5c3ea30cde8ea!8m2!3d49.2193226!4d-122.5983981";
 
-    public boolean permissionRequested = false;
-
-    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //set customize menu bar
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        //check if location permission is enabled
         locationServiceCheck();
-        setInitialWebView();
 
-        MyJsonUtil jsonUtil = new MyJsonUtil(MainActivity.this,getApplicationContext());
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+
+        //read json file and parse into array of crime objects
+        MyJsonUtil jsonUtil = new MyJsonUtil(MainActivity.this, getApplicationContext());
         jsonUtil.parseLocalJSON();
 
     }
 
-    public void setInitialWebView() {
-        final ProgressBar progressBar = findViewById(R.id.progressBar);
-        webView = findViewById(R.id.mapWebView);
+    public void onClickCrimeNearbyBtn(View v) {
 
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.setWebViewClient(new WebViewClient());
+        if (locationMarker != null) {
 
-        webView.setWebChromeClient(new WebChromeClient() {
-            public void onProgressChanged(WebView view, int progress) {
-                if (progress == 100) {
-                    progressBar.setVisibility(View.GONE);
-                } else {
-                    progressBar.setVisibility(View.VISIBLE);
-                }
+            if(locationMarker.getTag().equals(MARKER_TAG_ENABLED)){
+                Log.e(TAG, "Already exist");
+                return;
             }
-        });
 
-        webView.loadUrl(INITIAL_LOCATION);
-    }
+            //get marker coordinates
+            LatLng position = locationMarker.getPosition();
 
-    public void onClickBtn(View v) {
+            //check how many crime nearby
+            DataAnalysis d = new DataAnalysis(position, MyJsonUtil.crimeList);
+            int size = d.getNearbyCrime().size();
 
-        Intent intent = new Intent(MainActivity.this,CrimeListActivity.class);
-        webView = findViewById(R.id.mapWebView);
-        String webUrl = webView.getUrl();
-        Log.e(TAG, webUrl);
+            if (size == 0) {
+                //no crime data
+                Toast.makeText(MainActivity.this, R.string.noCrimeData, Toast.LENGTH_LONG).show();
+            } else {
+                //add a circle around the location and show a message
+                Drawable circleDrawable = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_alert, null);
+                BitmapDescriptor markerIcon = getMarkerIconFromDrawable(circleDrawable);
 
-        String pattern = "\\@(-?[\\d\\.]*)\\,(-?[\\d\\.]*)";
-        Pattern r = Pattern.compile(pattern);
-        Matcher m = r.matcher(webUrl);
+                locationMarker.setTitle("Found " + size + " crimes nearby");
+                locationMarker.setSnippet("--Tap to view details--");
+                locationMarker.setIcon(markerIcon);
+                locationMarker.setTag(MARKER_TAG_ENABLED);
+                locationMarker.showInfoWindow();
 
-        if(m.find()){
-            String[] coordinates = m.group(0).replace("@","").split(",");
-            prepareInfoDisplay(coordinates);
+                //add a circle to current location
+                locationCircle = mMap.addCircle(new CircleOptions()
+                        .center(position)
+                        .radius(CIRCLE_RADIUS)
+                        .strokeColor(Color.RED)
+                        .fillColor(0x220000FF)
+                        .strokeWidth(5));
+
+                //move camera to current location
+                mMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                        new CameraPosition.Builder()
+                                .target(position)
+                                .zoom(15.5f)
+                                .bearing(0)
+                                .tilt(25)
+                                .build()));
+            }
+
         } else {
-            Toast.makeText(MainActivity.this, R.string.errorLocation, Toast.LENGTH_LONG).show();
+            Toast.makeText(MainActivity.this, R.string.nomarker, Toast.LENGTH_LONG).show();
         }
 
     }
 
-    public void prepareInfoDisplay(String[] coordinates) {
-        final double curLong = Double.parseDouble(coordinates[1]);
-        final double curLati = Double.parseDouble(coordinates[0]);
-
-        LinearLayout layout_view_list = findViewById(R.id.view_list);
-        TextView tvInfo = findViewById(R.id.infoContainer);
-
-        //check how many crime nearby
-        DataAnalysis d = new DataAnalysis(curLong,curLati, MyJsonUtil.crimeList);
-        int size = d.getNearbyCrime().size();
-
-        if(size == 0) {
-            tvInfo.setText(R.string.sampleText);
-            layout_view_list.setVisibility(View.GONE);
-            Toast.makeText(MainActivity.this, R.string.noCrimeData, Toast.LENGTH_LONG).show();
-        } else {
-            layout_view_list.setVisibility(View.VISIBLE);
-            tvInfo.setText("Found " + size + " crimes nearby!");
-            layout_view_list.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent intent = new Intent(MainActivity.this, CrimeListActivity.class);
-                    intent.putExtra("Longitude", curLong);
-                    intent.putExtra("Latitude", curLati);
-                    startActivity(intent);
-                }
-            });
-        }
+    private BitmapDescriptor getMarkerIconFromDrawable(Drawable drawable) {
+        Canvas canvas = new Canvas();
+        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        canvas.setBitmap(bitmap);
+        drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+        drawable.draw(canvas);
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 
     @Override
@@ -154,17 +170,91 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(i);
                 return true;
             case R.id.action_location:
-                DecimalFormat df = new DecimalFormat("#.#######");
-                double Lat = Double.valueOf(df.format(curLocation.getLatitude()));
-                double Long = Double.valueOf(df.format(curLocation.getLongitude()));
-                Log.e(TAG, Lat + ", " + Long);
-
-                webView = findViewById(R.id.mapWebView);
-                webView.loadUrl(GOOGLE_MAP_URL + Lat + "," + Long + ",16z");
+                markCurrentLocation();
+                return true;
+            case R.id.action_search:
+                openSearchDialog();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void openSearchDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Search Location");
+
+        // Set up the input
+        final EditText input = new EditText(this);
+        // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        builder.setView(input);
+
+        // Set up the buttons
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                List<Address> addressList = null;
+                String location = input.getText().toString();
+
+                if (location != null && location != "") {
+                    Geocoder geocoder = new Geocoder(getApplicationContext());
+                    try {
+                        addressList = geocoder.getFromLocationName(location, 1);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    Address adr = addressList.get(0);
+                    LatLng latLng = new LatLng(adr.getLatitude(), adr.getLongitude());
+                    removeMarker();
+                    locationMarker = mMap.addMarker(new MarkerOptions().position(latLng).title(location));
+                    locationMarker.setTag(MARKER_TAG_DISABLED);
+                    mMap.animateCamera(CameraUpdateFactory.newLatLng(latLng));
+                }
+
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        builder.show();
+    }
+
+    private void markCurrentLocation() {
+        DecimalFormat df = new DecimalFormat("#.#######");
+        double Lat = Double.valueOf(df.format(curLocation.getLatitude()));
+        double Long = Double.valueOf(df.format(curLocation.getLongitude()));
+        Log.e(TAG, Lat + ", " + Long);
+
+        removeMarker();
+
+        // Add a marker to current location
+        LatLng loc = new LatLng(Lat, Long);
+        locationMarker = mMap.addMarker(new MarkerOptions().position(loc));
+        locationMarker.setTag(MARKER_TAG_DISABLED);
+        mMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                new CameraPosition.Builder()
+                        .target(loc)
+                        .zoom(16f)
+                        .bearing(0)
+                        .tilt(25)
+                        .build()));
+    }
+
+    private void removeMarker() {
+        if (locationMarker != null) {
+            locationMarker.remove();
+        }
+
+        if (locationCircle != null) {
+            locationCircle.remove();
+        }
+
     }
 
     @Override
@@ -183,18 +273,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         permissionRequested = false;
-        if(!isBoundLocation){
+        if (!isBoundLocation) {
             Intent intent = new Intent(this, MyLocationService.class);
             isBoundLocation = bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
         }
         Log.e("checkingpoint", "starting--------");
     }
 
-    public void registerCallback(){
+    public void registerCallback() {
         MyLocationService.LocationCallback cb = new MyLocationService.LocationCallback() {
             @Override
             public void onCallback(Location location) {
-                Log.e(TAG,location.getLatitude() + ":" + location.getLongitude());
+                Log.e(TAG, location.getLatitude() + ":" + location.getLongitude());
                 curLocation = location;
             }
         };
@@ -211,22 +301,22 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void locationServiceCheck(){
+    private void locationServiceCheck() {
         Intent intent = new Intent(this, MyLocationService.class);
         if (hasAllPermission()) {
 
             timer.cancel();
 
-            if(MyLocationService.isRunning)
+            if (MyLocationService.isRunning)
                 return;
 
             startService(intent);
 
         } else {
-            if(MyLocationService.isRunning)
+            if (MyLocationService.isRunning)
                 stopService(intent);
 
-            if(permissionRequested){
+            if (permissionRequested) {
 
                 timer.scheduleAtFixedRate(new TimerTask() {
 
@@ -235,7 +325,7 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.this.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                Toast.makeText(MainActivity.this, R.string.requirePermission , Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.this, R.string.requirePermission, Toast.LENGTH_LONG).show();
                             }
                         });
                     }
@@ -248,7 +338,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public boolean hasAllPermission(){
+    public boolean hasAllPermission() {
         return ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 && ContextCompat.checkSelfPermission(this,
@@ -258,12 +348,13 @@ public class MainActivity extends AppCompatActivity {
                 && ContextCompat.checkSelfPermission(this,
                 Manifest.permission.VIBRATE) == PackageManager.PERMISSION_GRANTED;
     }
-    public void requestForAllPermission(){
+
+    public void requestForAllPermission() {
         ActivityCompat.requestPermissions(this,
                 new String[]{Manifest.permission.SEND_SMS,
                         Manifest.permission.READ_PHONE_STATE,
                         Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.VIBRATE },
+                        Manifest.permission.VIBRATE},
                 1);
     }
 
@@ -285,4 +376,76 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+
+        //when map ready, move camera to maple ridge
+        LatLng mapleRidge = new LatLng(49.216027, -122.5984445);
+        mMap.moveCamera(CameraUpdateFactory.newCameraPosition(
+                new CameraPosition.Builder()
+                        .target(mapleRidge)
+                        .zoom(14.5f)
+                        .bearing(0)
+                        .tilt(25)
+                        .build()));
+
+        //set onclick event for map marker
+        mMap.setOnMarkerClickListener(this);
+        mMap.setOnMapClickListener(this);
+    }
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+
+        //retrieve marker type
+        String type = (String) marker.getTag();
+        Log.e(TAG, "Clicked Marker - type: " + type);
+
+        //if the marker is info marker, show the crime list
+        if (type.equals(MARKER_TAG_ENABLED)) {
+            Intent i = new Intent(this, CrimeListActivity.class);
+            i.putExtra("Longitude", marker.getPosition().longitude);
+            i.putExtra("Latitude", marker.getPosition().latitude);
+            startActivity(i);
+        }
+
+        return false;
+    }
+
+
+    @Override
+    public void onMapClick(LatLng latLng) {
+        //if circle exist, check distance. Return when click within circle
+        if (locationMarker != null && locationCircle != null && CalculationByDistance(latLng, locationMarker.getPosition()) <= CIRCLE_RADIUS) {
+            return;
+        }
+
+        //remove marker and circle
+        removeMarker();
+
+        //add new marker
+        locationMarker = mMap.addMarker(new MarkerOptions().position(latLng));
+        locationMarker.setTag(MARKER_TAG_DISABLED);
+    }
+
+    private double CalculationByDistance(LatLng StartP, LatLng EndP) {
+        int Radius = 6371;// radius of earth in Km
+        double lat1 = StartP.latitude;
+        double lat2 = EndP.latitude;
+        double lon1 = StartP.longitude;
+        double lon2 = EndP.longitude;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1))
+                * Math.cos(Math.toRadians(lat2)) * Math.sin(dLon / 2)
+                * Math.sin(dLon / 2);
+        double c = 2 * Math.asin(Math.sqrt(a));
+        double valueResult = Radius * c * 1000;
+
+        Log.i("Radius Value", "Distance: " + valueResult + "meters");
+
+        return valueResult;
+    }
 }

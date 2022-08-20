@@ -1,87 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+
+<android.support.constraint.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
     tools:context=".MainActivity"
-    android:orientation="vertical"
-    android:background="@color/ghost_white">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
-    <include layout="@layout/toolbar_main" android:id="@+id/toolbar" />
+    <include
+        android:id="@+id/toolbar"
+        layout="@layout/toolbar_main"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <WebView  xmlns:android="http://schemas.android.com/apk/res/android"
-        android:id="@+id/mapWebView"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_margin="10dp"
-        android:layout_weight="100"/>
-
-    <ProgressBar
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/progressBar"
-        android:layout_gravity="center"
-        />
-
-    <LinearLayout
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/border"
-        android:orientation="horizontal"
-        android:padding="15dp"
-        android:layout_marginLeft="10dp"
-        android:layout_marginRight="10dp"
-        android:id="@+id/infoLayout">
-
-        <TextView
-            android:id="@+id/infoContainer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/sampleText"
-            android:textSize="22sp"
-            android:fontFamily="cursive"
-            android:layout_marginLeft="10dp"
-            android:layout_weight="1"
-            />
-
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:id="@+id/view_list"
-            android:visibility="gone">
-
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_baseline_pageview_24px"
-                android:scaleType="fitXY"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/viewDetail"
-                android:textSize="20dp"
-                android:fontFamily="cursive"
-                android:textStyle="bold"
-                android:textColor="@color/bootstrapPrimary"
-                android:layout_marginLeft="5dp"/>
-        </LinearLayout>
-
-
-    </LinearLayout>
+    <fragment
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:context="ca.bcit.psychopass.MainActivity"
+        tools:layout_editor_absoluteX="0dp" />
 
     <Button
         android:id="@+id/crimeBtn"
-        android:background="@drawable/ripple_effect"
-        android:layout_width="fill_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:textSize="20sp"
-        android:textColor="@color/ghost_white"
+        android:layout_marginStart="30dp"
+        android:layout_marginEnd="30dp"
+        android:layout_marginBottom="30dp"
+        android:background="@drawable/ripple_effect"
+        android:onClick="onClickCrimeNearbyBtn"
         android:text="@string/CrimeNearbyBtnText"
-        android:onClick="onClickBtn"
-        />
+        android:textColor="@color/ghost_white"
+        android:textSize="20sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-</LinearLayout>
+
+</android.support.constraint.ConstraintLayout>
+
+

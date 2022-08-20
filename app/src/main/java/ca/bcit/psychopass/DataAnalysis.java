@@ -1,5 +1,7 @@
 package ca.bcit.psychopass;
 
+import com.google.android.gms.maps.model.LatLng;
+
 import java.lang.reflect.Array;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -14,14 +16,16 @@ import java.util.List;
 import static java.lang.Math.abs;
 
 public class DataAnalysis {
+
+    private static final double RADIUS_LONGTITUDE = 0.0025;
+    private static final double RADIUS_LATITUDE = 0.00125;
+
     private double Longitude;
     private double Latitude;
     private List<Crime> crimeList;
 
-    private static final double RADIUS_LONGTITUDE = 0.001;
-    private static final double RADIUS_LATITUDE = 0.0005;
-
     DataAnalysis(){
+        //initialize with a default location in maple ridge
         Longitude = -122.6039533;
         Latitude = 49.2178709;
         Crime sample = new Crime();
@@ -29,9 +33,9 @@ public class DataAnalysis {
         crimeList.add(sample);
     }
 
-    DataAnalysis(double Longitude, double Latitude, List<Crime> crimeList){
-        this.Longitude = Longitude;
-        this.Latitude = Latitude;
+    DataAnalysis(LatLng location, List<Crime> crimeList){
+        this.Longitude = location.longitude;
+        this.Latitude = location.latitude;
         this.crimeList = crimeList;
     }
 
@@ -61,8 +65,12 @@ public class DataAnalysis {
 
 
     public boolean isDangerZone() {
+
+        //danger zone is the location where crime number exceeds 200
+        int threshold = 200;
+
         ArrayList<Crime> list = getNearbyCrime();
-        return (list.size()> 20);
+        return (list.size()> threshold);
     }
 
 }

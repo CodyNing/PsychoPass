@@ -4,14 +4,20 @@
 
     <item android:id="@+id/action_location"
         android:title="@string/Location"
-        android:icon="@drawable/ic_location"
+        android:icon="@drawable/ic_placeholder"
         android:orderInCategory="1"
+        app:showAsAction="ifRoom" />
+
+    <item android:id="@+id/action_search"
+        android:title="@string/Search"
+        android:icon="@drawable/ic_magnifier_tool"
+        android:orderInCategory="2"
         app:showAsAction="ifRoom" />
 
     <item android:id="@+id/action_settings"
         android:title="@string/app_name"
-        android:icon="@drawable/settings_svg"
-        android:orderInCategory="2"
+        android:icon="@drawable/ic_settings_work_tool"
+        android:orderInCategory="3"
         app:showAsAction="ifRoom" />
 
 </menu>
